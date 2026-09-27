@@ -476,6 +476,16 @@ export default function TransactionsPage({ openVoice, openForm, onCloseVoice, on
   useEffect(() => { setPage(1); load(1); }, [filters, load]);
   useEffect(() => { if (page > 1) load(page); }, [page, load]);
 
+  useEffect(() => {
+    const handleUpdate = () => { load(1); };
+    window.addEventListener('earnvoice_offline_tx_added', handleUpdate);
+    window.addEventListener('earnvoice_offline_tx_synced', handleUpdate);
+    return () => {
+      window.removeEventListener('earnvoice_offline_tx_added', handleUpdate);
+      window.removeEventListener('earnvoice_offline_tx_synced', handleUpdate);
+    };
+  }, [load]);
+
   useEffect(() => { if (openForm) { setVoicePrefill(undefined); setEditTx(null); setShowForm(true); } }, [openForm]);
   useEffect(() => { if (!openForm) setShowForm(false); }, [openForm]);
 

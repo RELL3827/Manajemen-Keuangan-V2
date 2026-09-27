@@ -67,6 +67,16 @@ export default function DashboardPage({ onAddTransaction, onVoiceInput, onNaviga
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    const handleUpdate = () => { load(); };
+    window.addEventListener('earnvoice_offline_tx_added', handleUpdate);
+    window.addEventListener('earnvoice_offline_tx_synced', handleUpdate);
+    return () => {
+      window.removeEventListener('earnvoice_offline_tx_added', handleUpdate);
+      window.removeEventListener('earnvoice_offline_tx_synced', handleUpdate);
+    };
+  }, [load]);
+
   const typeColor = (type: string) => ({
     income: 'text-emerald-400',
     expense: 'text-rose-400',

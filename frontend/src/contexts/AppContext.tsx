@@ -99,6 +99,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, refreshAccounts, refreshCategories, refreshNotifications]);
 
+  // Listen to transaction updates to refresh accounts immediately
+  useEffect(() => {
+    const handleUpdate = () => {
+      refreshAccounts();
+    };
+    window.addEventListener('earnvoice_offline_tx_added', handleUpdate);
+    window.addEventListener('earnvoice_offline_tx_synced', handleUpdate);
+    return () => {
+      window.removeEventListener('earnvoice_offline_tx_added', handleUpdate);
+      window.removeEventListener('earnvoice_offline_tx_synced', handleUpdate);
+    };
+  }, [refreshAccounts]);
+
   // Periodic notification refresh (30 seconds)
   useEffect(() => {
     if (!user) return;

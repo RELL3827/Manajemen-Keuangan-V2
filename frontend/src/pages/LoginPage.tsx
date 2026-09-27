@@ -55,34 +55,13 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
       language: 'id',
       created_at: new Date().toISOString(),
     };
+    localStorage.removeItem('earnvoice_token');
     localStorage.setItem('earnvoice_user', JSON.stringify(offlineUser));
     localStorage.setItem('earnvoice_is_offline_mode', 'true');
 
     try {
       const { offlineDB } = await import('@/services/db');
-      const existingAccs = await offlineDB.getCachedData<any>('accounts');
-      if (!existingAccs || !existingAccs.accounts || existingAccs.accounts.length === 0) {
-        await offlineDB.setCachedData('accounts', {
-          accounts: [
-            { id: 1, name: 'Dompet Tunai', type: 'cash', balance: 500000, color: '#10B981', icon: 'wallet', is_active: true },
-            { id: 2, name: 'Rekening Bank', type: 'bank', balance: 2500000, color: '#3B82F6', icon: 'building-2', is_active: true },
-            { id: 3, name: 'E-Wallet', type: 'ewallet', balance: 150000, color: '#8B5CF6', icon: 'smartphone', is_active: true },
-          ],
-          total_balance: 3150000,
-        });
-      }
-
-      const existingCats = await offlineDB.getCachedData<any>('categories');
-      if (!existingCats || existingCats.length === 0) {
-        await offlineDB.setCachedData('categories', [
-          { id: 1, name: 'Makanan & Minuman', type: 'expense', icon: 'utensils', color: '#EF4444' },
-          { id: 2, name: 'Transportasi', type: 'expense', icon: 'car', color: '#F59E0B' },
-          { id: 3, name: 'Belanja', type: 'expense', icon: 'shopping-cart', color: '#8B5CF6' },
-          { id: 4, name: 'Tagihan & Utilitas', type: 'expense', icon: 'zap', color: '#EC4899' },
-          { id: 5, name: 'Gaji', type: 'income', icon: 'briefcase', color: '#10B981' },
-          { id: 6, name: 'Bonus & Freelance', type: 'income', icon: 'sparkles', color: '#06B6D4' },
-        ]);
-      }
+      await offlineDB.seedInitialDataIfEmpty();
     } catch { }
 
     setUser(offlineUser);

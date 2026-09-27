@@ -298,6 +298,16 @@ export function AccountsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    const handleUpdate = () => { load(); };
+    window.addEventListener('earnvoice_offline_tx_added', handleUpdate);
+    window.addEventListener('earnvoice_offline_tx_synced', handleUpdate);
+    return () => {
+      window.removeEventListener('earnvoice_offline_tx_added', handleUpdate);
+      window.removeEventListener('earnvoice_offline_tx_synced', handleUpdate);
+    };
+  }, [load]);
+
   const handleDelete = async (id: number) => {
     if (!confirm('Hapus akun ini? Riwayat transaksi akun ini akan tetap tersimpan.')) return;
     try { await api.deleteAccount(id); load(); } catch {}
