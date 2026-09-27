@@ -1,0 +1,50 @@
+{
+  "name": "EarnVoice - Manajemen Keuangan Pintar",
+  "short_name": "EarnVoice",
+  "description": "Catat Keuangan Semudah Bicara. Kelola pemasukan, pengeluaran, anggaran, dan tabungan pribadi & keluarga secara cerdas dengan suara.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0F14",
+  "theme_color": "#2563EB",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "48x48 72x72 96x96 128x128 256x256",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": [
+    "finance",
+    "productivity",
+    "business"
+  ],
+  "shortcuts": [
+    {
+      "name": "🎙️ Catat dengan Suara",
+      "short_name": "Catat Suara",
+      "description": "Buka perekam suara langsung untuk mencatat keuangan",
+      "url": "/?action=voice",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "💳 Riwayat Transaksi",
+      "short_name": "Transaksi",
+      "url": "/?tab=transactions",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "📊 Laporan Keuangan",
+      "short_name": "Laporan",
+      "url": "/?tab=reports",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": []
+}

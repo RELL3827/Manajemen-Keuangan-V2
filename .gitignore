@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+backend/vendor/
+vendor/
+
+# Environment and sensitive config
+.env
+.env.backup
+.env.production
+backend/.env
+frontend/android/local.properties
+
+# Logs and databases
+*.log
+backend/storage/logs/*.log
+*.sqlite
+backend/database/*.sqlite
+
+# Android Build & Gradle caches
+.gradle/
+**/build/
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/app/build/
+frontend/android/captures/
+frontend/android/.cxx/
+
+# IDE & OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# System / AI temp files
+.gemini/
+.system_generated/

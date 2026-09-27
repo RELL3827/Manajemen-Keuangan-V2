@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A" />
+      <stop offset="50%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#3B82F6" />
+    </linearGradient>
+    <linearGradient id="micGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E2E8F0" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="#0B0F14" />
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bgGrad)" />
+  <rect x="216" y="140" width="80" height="150" rx="40" fill="url(#micGrad)" />
+  <path d="M186 215 C186 295, 326 295, 326 215" fill="none" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" />
+  <line x1="256" y1="295" x2="256" y2="350" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" />
+  <line x1="200" y1="350" x2="312" y2="350" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" />
+  <circle cx="360" cy="360" r="64" fill="#10B981" />
+  <text x="360" y="380" font-family="Inter, sans-serif" font-size="52" font-weight="900" fill="#FFFFFF" text-anchor="middle">Rp</text>
+</svg>
