@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { api, ApiError } from '@/services/api';
+import { api, ApiError, isOfflineMode } from '@/services/api';
+import { offlineDB } from '@/services/db';
 import type { Account } from '@/types';
 import { cn, formatCompactRupiah, formatRupiah } from '@/utils/formatters';
 
@@ -286,14 +287,24 @@ export function AccountsPage() {
   const [showTransfer, setShowTransfer] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    // 1. Instantly read from local IndexedDB
     try {
-      const res = await api.getAccounts();
-      setTotalBalance(res.total_balance);
-      await refreshAccounts();
-    } finally {
-      setLoading(false);
+      const local = await offlineDB.getLocalAccounts();
+      if (local && local.accounts) {
+        setTotalBalance(local.total_balance);
+        setLoading(false);
+      }
+    } catch {}
+
+    // 2. In background, revalidate from server if online
+    if (!isOfflineMode()) {
+      try {
+        const res = await api.getAccounts();
+        setTotalBalance(res.total_balance);
+        await refreshAccounts();
+      } catch {}
     }
+    setLoading(false);
   }, [refreshAccounts]);
 
   useEffect(() => { load(); }, [load]);

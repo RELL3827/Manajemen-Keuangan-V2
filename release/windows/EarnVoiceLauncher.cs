@@ -84,6 +84,18 @@ namespace EarnVoice
             }
             catch { }
 
+            // Find php executable
+            string phpExe = "php";
+            string[] knownPhpPaths = new string[]
+            {
+                @"C:\xampp\php\php.exe",
+                @"C:\laragon\bin\php\php-8.3.33-Win32-vs16-x64\php.exe",
+            };
+            foreach (var p in knownPhpPaths)
+            {
+                if (File.Exists(p)) { phpExe = p; break; }
+            }
+
             // Try to find backend directory and php
             string[] possibleBackendPaths = new string[]
             {
@@ -100,13 +112,13 @@ namespace EarnVoice
                 {
                     try
                     {
-                        ProcessStartInfo psi = new ProcessStartInfo("php", "artisan serve --port=8000 --host=127.0.0.1");
+                        ProcessStartInfo psi = new ProcessStartInfo(phpExe, "artisan serve --port=8000 --host=0.0.0.0");
                         psi.WorkingDirectory = fullPath;
                         psi.CreateNoWindow = true;
                         psi.UseShellExecute = false;
                         psi.WindowStyle = ProcessWindowStyle.Hidden;
                         _phpProcess = Process.Start(psi);
-                        Thread.Sleep(1200);
+                        Thread.Sleep(1000);
                         break;
                     }
                     catch { }
@@ -199,6 +211,7 @@ namespace EarnVoice
                 {
                     ctx.Response.StatusCode = 404;
                     byte[] notFound = Encoding.UTF8.GetBytes("Not Found");
+                    ctx.Response.ContentLength64 = notFound.Length;
                     ctx.Response.OutputStream.Write(notFound, 0, notFound.Length);
                 }
             }
@@ -213,11 +226,29 @@ namespace EarnVoice
         {
             try
             {
+                // Instantly handle CORS preflight
+                if (ctx.Request.HttpMethod == "OPTIONS")
+                {
+                    ctx.Response.StatusCode = 200;
+                    ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                    ctx.Response.AddHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                    ctx.Response.AddHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+                    ctx.Response.ContentLength64 = 0;
+                    return;
+                }
+
                 string targetUrl = "http://127.0.0.1:8000" + ctx.Request.RawUrl;
                 HttpWebRequest req = (HttpWebRequest)WebRequest.Create(targetUrl);
                 req.Method = ctx.Request.HttpMethod;
                 req.ContentType = ctx.Request.ContentType;
                 req.UserAgent = ctx.Request.UserAgent;
+                req.Timeout = 3000; // 3s timeout
+                req.ReadWriteTimeout = 3000;
+                req.KeepAlive = false;
+
+                string accept = ctx.Request.Headers["Accept"];
+                if (!string.IsNullOrEmpty(accept)) req.Accept = accept;
+                else req.Accept = "application/json";
 
                 // Copy auth headers
                 string auth = ctx.Request.Headers["Authorization"];
@@ -232,33 +263,58 @@ namespace EarnVoice
                     }
                 }
 
+                ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                ctx.Response.AddHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                ctx.Response.AddHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+
                 using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse())
                 {
-                    ctx.Response.StatusCode = (int)resp.StatusCode;
-                    ctx.Response.ContentType = resp.ContentType;
-                    using (Stream respStream = resp.GetResponseStream())
+                    byte[] bodyBytes;
+                    using (MemoryStream ms = new MemoryStream())
                     {
-                        respStream.CopyTo(ctx.Response.OutputStream);
+                        using (Stream respStream = resp.GetResponseStream())
+                        {
+                            respStream.CopyTo(ms);
+                        }
+                        bodyBytes = ms.ToArray();
                     }
+
+                    ctx.Response.StatusCode = (int)resp.StatusCode;
+                    ctx.Response.ContentType = resp.ContentType ?? "application/json";
+                    ctx.Response.ContentLength64 = bodyBytes.Length;
+                    ctx.Response.OutputStream.Write(bodyBytes, 0, bodyBytes.Length);
                 }
             }
             catch (WebException wex)
             {
+                ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                ctx.Response.AddHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                ctx.Response.AddHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+
                 HttpWebResponse errResp = wex.Response as HttpWebResponse;
                 if (errResp != null)
                 {
-                    ctx.Response.StatusCode = (int)errResp.StatusCode;
-                    ctx.Response.ContentType = errResp.ContentType;
-                    using (Stream errStream = errResp.GetResponseStream())
+                    byte[] errBytes;
+                    using (MemoryStream ms = new MemoryStream())
                     {
-                        errStream.CopyTo(ctx.Response.OutputStream);
+                        using (Stream errStream = errResp.GetResponseStream())
+                        {
+                            errStream.CopyTo(ms);
+                        }
+                        errBytes = ms.ToArray();
                     }
+
+                    ctx.Response.StatusCode = (int)errResp.StatusCode;
+                    ctx.Response.ContentType = errResp.ContentType ?? "application/json";
+                    ctx.Response.ContentLength64 = errBytes.Length;
+                    ctx.Response.OutputStream.Write(errBytes, 0, errBytes.Length);
                 }
                 else
                 {
                     ctx.Response.StatusCode = 502;
                     byte[] err = Encoding.UTF8.GetBytes("{\"message\":\"Backend not reachable\"}");
                     ctx.Response.ContentType = "application/json";
+                    ctx.Response.ContentLength64 = err.Length;
                     ctx.Response.OutputStream.Write(err, 0, err.Length);
                 }
             }

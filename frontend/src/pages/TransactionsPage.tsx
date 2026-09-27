@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { api, ApiError } from '@/services/api';
+import { api, ApiError, isOfflineMode } from '@/services/api';
+import { offlineDB } from '@/services/db';
 import { useSpeechRecognition } from '@/services/speechRecognition';
 import { parseVoiceText } from '@/services/voiceParser';
 import type { Transaction, VoiceParsedResult } from '@/types';
@@ -454,23 +455,35 @@ export default function TransactionsPage({ openVoice, openForm, onCloseVoice, on
   const [showForm, setShowForm] = useState(false);
 
   const load = useCallback(async (p = 1) => {
-    setLoading(true);
-    try {
-      const params: any = { page: p, per_page: 20 };
-      if (filters.search) params.search = filters.search;
-      if (filters.type) params.type = filters.type;
-      if (filters.account_id) params.account_id = filters.account_id;
-      if (filters.category_id) params.category_id = filters.category_id;
-      if (filters.start_date) params.start_date = filters.start_date;
-      if (filters.end_date) params.end_date = filters.end_date;
+    const params: any = { page: p, per_page: 20 };
+    if (filters.search) params.search = filters.search;
+    if (filters.type) params.type = filters.type;
+    if (filters.account_id) params.account_id = filters.account_id;
+    if (filters.category_id) params.category_id = filters.category_id;
+    if (filters.start_date) params.start_date = filters.start_date;
+    if (filters.end_date) params.end_date = filters.end_date;
 
-      const data = await api.getTransactions(params);
-      setTransactions(data.data);
-      setLastPage(data.last_page);
-      setTotal(data.total);
-    } finally {
-      setLoading(false);
+    // 1. Immediately read and display from local IndexedDB (zero delay)
+    try {
+      const local = await offlineDB.getLocalTransactions(params);
+      if (local && local.data) {
+        setTransactions(local.data);
+        setLastPage(local.last_page);
+        setTotal(local.total);
+        setLoading(false);
+      }
+    } catch {}
+
+    // 2. In background, revalidate from server if online
+    if (!isOfflineMode()) {
+      try {
+        const data = await api.getTransactions(params);
+        setTransactions(data.data);
+        setLastPage(data.last_page);
+        setTotal(data.total);
+      } catch {}
     }
+    setLoading(false);
   }, [filters]);
 
   useEffect(() => { setPage(1); load(1); }, [filters, load]);

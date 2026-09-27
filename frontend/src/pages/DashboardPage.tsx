@@ -8,7 +8,8 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from '@/contexts/AppContext';
-import { api } from '@/services/api';
+import { api, isOfflineMode } from '@/services/api';
+import { offlineDB } from '@/services/db';
 import type { Budget, DashboardSummary, FinancialInsight, Transaction } from '@/types';
 import { cn, formatCompactRupiah, formatIndonesianDate, formatRupiah } from '@/utils/formatters';
 
@@ -50,19 +51,31 @@ export default function DashboardPage({ onAddTransaction, onVoiceInput, onNaviga
   const [period, setPeriod] = useState<'week' | 'month' | 'year'>('month');
 
   const load = useCallback(async () => {
-    setLoading(true);
+    // 1. Instantly load local data (0-5ms) so UI shows zero delay
     try {
-      const data = await api.getDashboard(period);
-      setSummary(data.summary);
-      setChartData(data.chart_data || []);
-      setTransactions(data.recent_transactions || []);
-      setBudgets(data.budgets || []);
-      setInsights(data.insights || []);
-    } catch {
-      // Handled via offline cache in api client
-    } finally {
-      setLoading(false);
+      const localData = await offlineDB.getLocalDashboard(period);
+      if (localData) {
+        setSummary(localData.summary);
+        setChartData(localData.chart_data || []);
+        setTransactions(localData.recent_transactions || []);
+        setBudgets(localData.budgets || []);
+        setInsights(localData.insights || []);
+        setLoading(false);
+      }
+    } catch {}
+
+    // 2. In background, revalidate from server if online
+    if (!isOfflineMode()) {
+      try {
+        const data = await api.getDashboard(period);
+        setSummary(data.summary);
+        setChartData(data.chart_data || []);
+        setTransactions(data.recent_transactions || []);
+        setBudgets(data.budgets || []);
+        setInsights(data.insights || []);
+      } catch {}
     }
+    setLoading(false);
   }, [period]);
 
   useEffect(() => { load(); }, [load]);

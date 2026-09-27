@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { api } from '@/services/api';
+import { api, isOfflineMode } from '@/services/api';
+import { offlineDB } from '@/services/db';
 import type { Account, AppNotification, Category, User } from '@/types';
 
 interface AppContextType {
@@ -70,6 +71,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAccounts = useCallback(async () => {
     try {
+      const local = await offlineDB.getLocalAccountsList();
+      if (local && local.length > 0) setAccounts(local);
+    } catch {}
+    try {
       const res = await api.getAccounts();
       setAccounts(res.accounts);
     } catch {}
@@ -77,12 +82,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshCategories = useCallback(async () => {
     try {
+      const local = await offlineDB.getLocalCategories();
+      if (local && local.length > 0) setCategories(local);
+    } catch {}
+    try {
       const cats = await api.getCategories();
       setCategories(cats);
     } catch {}
   }, []);
 
   const refreshNotifications = useCallback(async () => {
+    if (isOfflineMode()) return;
     try {
       const res = await api.getNotifications();
       setNotifications(res.notifications);
@@ -112,10 +122,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [refreshAccounts]);
 
-  // Periodic notification refresh (30 seconds)
+  // Periodic notification refresh (60 seconds, only when online)
   useEffect(() => {
-    if (!user) return;
-    const interval = setInterval(refreshNotifications, 30000);
+    if (!user || isOfflineMode()) return;
+    const interval = setInterval(refreshNotifications, 60000);
     return () => clearInterval(interval);
   }, [user, refreshNotifications]);
 

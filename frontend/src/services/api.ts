@@ -17,14 +17,17 @@ export function getApiBase(): string {
     const custom = localStorage.getItem('earnvoice_server_url');
     if (custom) return custom.replace(/\/+$/, '') + '/api';
 
-    const isLocalWeb = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '5173';
-    if (isLocalWeb) return '/api';
+    // On local machine (browser dev port 5173, Windows standalone app port 5174, etc.)
+    const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalHost) {
+      return '/api';
+    }
 
     if (window.location.protocol === 'capacitor:' || window.location.protocol === 'file:') {
       return 'http://172.20.10.3:8000/api';
     }
   }
-  return 'http://127.0.0.1:8000/api';
+  return '/api';
 }
 
 export function isOfflineMode(): boolean {
@@ -57,15 +60,21 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  // Safe 3.5s timeout controller to prevent UI hang on Windows or slow backend
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+
   const config: RequestInit = {
     ...options,
     headers,
+    signal: options.signal || controller.signal,
   };
 
   try {
     const base = getApiBase();
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const res = await fetch(`${base}${cleanEndpoint}`, config);
+    clearTimeout(timeoutId);
 
     if (res.status === 401) {
       // Token expired or invalid
@@ -85,10 +94,11 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
     return data as T;
   } catch (err: any) {
+    clearTimeout(timeoutId);
     if (err instanceof ApiError) {
       throw err;
     }
-    // Network error / offline
+    // Network error / timeout / offline
     throw new ApiError(0, 'Koneksi gagal atau offline. Aplikasi tetap dapat digunakan dalam mode offline.');
   }
 }
