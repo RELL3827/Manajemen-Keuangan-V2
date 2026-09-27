@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock,
-  Mail, RefreshCw, Server, Sparkles, User, Wallet, Wifi
+  Mail, RefreshCw, Server, Smartphone, Sparkles, User, Wallet, Wifi
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { api, ApiError } from '@/services/api';
+import type { User as UserType } from '@/types';
 
 type Mode = 'login' | 'register' | 'forgot';
 
@@ -42,6 +43,50 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const handleSaveServer = () => {
     api.setServerUrl(serverUrl);
     setTestResult({ ok: true, message: 'Pengaturan server disimpan!' });
+  };
+
+  const handleEnterOfflineMode = async () => {
+    const offlineUser: UserType = {
+      id: 999999,
+      name: 'Pengguna Offline',
+      email: 'offline@earnvoice.local',
+      currency: 'IDR',
+      timezone: 'Asia/Jakarta',
+      language: 'id',
+      created_at: new Date().toISOString(),
+    };
+    localStorage.setItem('earnvoice_user', JSON.stringify(offlineUser));
+    localStorage.setItem('earnvoice_is_offline_mode', 'true');
+
+    try {
+      const { offlineDB } = await import('@/services/db');
+      const existingAccs = await offlineDB.getCachedData<any>('accounts');
+      if (!existingAccs || !existingAccs.accounts || existingAccs.accounts.length === 0) {
+        await offlineDB.setCachedData('accounts', {
+          accounts: [
+            { id: 1, name: 'Dompet Tunai', type: 'cash', balance: 500000, color: '#10B981', icon: 'wallet', is_active: true },
+            { id: 2, name: 'Rekening Bank', type: 'bank', balance: 2500000, color: '#3B82F6', icon: 'building-2', is_active: true },
+            { id: 3, name: 'E-Wallet', type: 'ewallet', balance: 150000, color: '#8B5CF6', icon: 'smartphone', is_active: true },
+          ],
+          total_balance: 3150000,
+        });
+      }
+
+      const existingCats = await offlineDB.getCachedData<any>('categories');
+      if (!existingCats || existingCats.length === 0) {
+        await offlineDB.setCachedData('categories', [
+          { id: 1, name: 'Makanan & Minuman', type: 'expense', icon: 'utensils', color: '#EF4444' },
+          { id: 2, name: 'Transportasi', type: 'expense', icon: 'car', color: '#F59E0B' },
+          { id: 3, name: 'Belanja', type: 'expense', icon: 'shopping-cart', color: '#8B5CF6' },
+          { id: 4, name: 'Tagihan & Utilitas', type: 'expense', icon: 'zap', color: '#EC4899' },
+          { id: 5, name: 'Gaji', type: 'income', icon: 'briefcase', color: '#10B981' },
+          { id: 6, name: 'Bonus & Freelance', type: 'income', icon: 'sparkles', color: '#06B6D4' },
+        ]);
+      }
+    } catch { }
+
+    setUser(offlineUser);
+    onSuccess();
   };
 
   const [form, setForm] = useState({
@@ -262,6 +307,20 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
                     ? 'Daftar Sekarang'
                     : 'Kirim Link Reset'}
                 </span>
+              </button>
+
+              <div className="relative my-2.5 flex items-center justify-center">
+                <div className="border-t border-fintech-border w-full" />
+                <span className="bg-fintech-card px-2 text-[10px] uppercase tracking-wider text-fintech-muted">atau</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleEnterOfflineMode}
+                className="w-full py-2 px-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-400 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+              >
+                <Smartphone size={14} />
+                <span>Gunakan Mode Offline (Tanpa PC)</span>
               </button>
 
               {mode === 'login' && (
