@@ -103,6 +103,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 }
 
+let isSyncingOffline = false;
+
 export const api = {
   // 1. Auth
   async login(credentials: { email: string; password: string }): Promise<{ user: User; token: string }> {
@@ -272,12 +274,13 @@ export const api = {
   },
 
   async syncOfflineTransactions(): Promise<{ synced_count: number }> {
-    if (isOfflineMode()) return { synced_count: 0 };
+    if (isOfflineMode() || isSyncingOffline) return { synced_count: 0 };
     const pending = await offlineDB.getUnsyncedTransactions();
     if (!pending || pending.length === 0) {
       return { synced_count: 0 };
     }
 
+    isSyncingOffline = true;
     try {
       const data = await request<{ synced_count: number; synced: Array<{ client_id: string; server_id: number }> }>('/transactions/sync', {
         method: 'POST',
@@ -287,12 +290,19 @@ export const api = {
       if (data.synced && data.synced.length > 0) {
         const syncedIds = data.synced.map((s) => s.client_id).filter(Boolean);
         await offlineDB.markAsSynced(syncedIds);
-        window.dispatchEvent(new Event('earnvoice_offline_tx_synced'));
+      }
+      
+      // If server processed items or returned success, clear the queue so it won't repeatedly resync
+      if ((data.synced_count || 0) >= pending.length) {
+        await offlineDB.clearOfflineQueue();
       }
 
+      window.dispatchEvent(new Event('earnvoice_offline_tx_synced'));
       return { synced_count: data.synced_count || 0 };
     } catch {
       return { synced_count: 0 };
+    } finally {
+      isSyncingOffline = false;
     }
   },
 

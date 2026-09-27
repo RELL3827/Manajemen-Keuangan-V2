@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock,
-  Mail, RefreshCw, Server, Smartphone, Sparkles, User, Wallet, Wifi
+  Mail, Monitor, RefreshCw, Server, Smartphone, Sparkles, User, Wallet, Wifi
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
@@ -18,6 +18,8 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  const isDesktop = !(/Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent));
+
   // Server connection state
   const [showServerModal, setShowServerModal] = useState(false);
   const [serverUrl, setServerUrlInput] = useState(api.getServerUrl());
@@ -26,6 +28,12 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
+    // Check if launched with ?offline=true
+    if (window.location.search.includes('offline=true')) {
+      handleEnterOfflineMode();
+      return;
+    }
+
     api.testConnection().then(res => {
       setServerConnected(res.ok);
     });
@@ -298,8 +306,12 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
                 onClick={handleEnterOfflineMode}
                 className="w-full py-2 px-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-400 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors shadow-sm"
               >
-                <Smartphone size={14} />
-                <span>Gunakan Mode Offline (Tanpa PC)</span>
+                {isDesktop ? <Monitor size={14} /> : <Smartphone size={14} />}
+                <span>
+                  {isDesktop
+                    ? 'Gunakan Mode Offline Windows (Tanpa Server)'
+                    : 'Gunakan Mode Offline (Tanpa PC)'}
+                </span>
               </button>
 
               {mode === 'login' && (

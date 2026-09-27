@@ -302,6 +302,20 @@ class TransactionController extends Controller
         DB::beginTransaction();
         try {
             foreach ($items as $item) {
+                // Deduplicate by client_id if provided
+                if (! empty($item['client_id'])) {
+                    $existing = Transaction::where('user_id', $user->id)
+                        ->where('client_id', $item['client_id'])
+                        ->first();
+                    if ($existing) {
+                        $synced[] = [
+                            'client_id' => $item['client_id'],
+                            'server_id' => $existing->id,
+                        ];
+                        continue;
+                    }
+                }
+
                 // Ensure default account if missing
                 if (empty($item['account_id'])) {
                     $defaultAcc = Account::where('user_id', $user->id)->first();
@@ -322,6 +336,24 @@ class TransactionController extends Controller
 
                 $amount = (float) ($item['amount'] ?? 0);
                 $type = $item['type'] ?? 'expense';
+                $txDate = $item['transaction_date'] ?? Carbon::now()->format('Y-m-d');
+                $desc = $item['description'] ?? 'Offline Voice Transaction';
+
+                // Signature deduplication check
+                $existingSig = Transaction::where('user_id', $user->id)
+                    ->where('account_id', $item['account_id'])
+                    ->where('type', $type)
+                    ->where('amount', $amount)
+                    ->where('description', $desc)
+                    ->where('transaction_date', $txDate)
+                    ->first();
+                if ($existingSig) {
+                    $synced[] = [
+                        'client_id' => $item['client_id'] ?? null,
+                        'server_id' => $existingSig->id,
+                    ];
+                    continue;
+                }
 
                 if ($type === 'income') {
                     $account->increment('current_balance', $amount);
@@ -338,14 +370,15 @@ class TransactionController extends Controller
                 }
 
                 $tx = Transaction::create([
+                    'client_id' => $item['client_id'] ?? null,
                     'user_id' => $user->id,
                     'account_id' => $item['account_id'],
                     'to_account_id' => $item['to_account_id'] ?? null,
                     'category_id' => $item['category_id'] ?? null,
                     'type' => $type,
                     'amount' => $amount,
-                    'description' => $item['description'] ?? 'Offline Voice Transaction',
-                    'transaction_date' => $item['transaction_date'] ?? Carbon::now()->format('Y-m-d'),
+                    'description' => $desc,
+                    'transaction_date' => $txDate,
                     'input_method' => $item['input_method'] ?? 'voice',
                     'voice_text' => $item['voice_text'] ?? null,
                     'attachment' => $item['attachment'] ?? null,

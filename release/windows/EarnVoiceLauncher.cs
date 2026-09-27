@@ -19,10 +19,23 @@ namespace EarnVoice
         private static Process _phpProcess = null;
 
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             try
             {
+                bool isOffline = false;
+                if (args != null)
+                {
+                    foreach (string arg in args)
+                    {
+                        if (arg != null && arg.ToLower().Contains("offline"))
+                        {
+                            isOffline = true;
+                            break;
+                        }
+                    }
+                }
+
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 _appDir = Path.Combine(baseDir, "app");
                 if (!Directory.Exists(_appDir))
@@ -32,8 +45,11 @@ namespace EarnVoice
                     if (Directory.Exists(fallback)) _appDir = Path.GetFullPath(fallback);
                 }
 
-                // Check backend
-                EnsureBackendRunning(baseDir);
+                // If not offline, ensure backend is running
+                if (!isOffline)
+                {
+                    EnsureBackendRunning(baseDir);
+                }
 
                 // Find open port
                 _port = GetAvailablePort(5174);
@@ -42,7 +58,7 @@ namespace EarnVoice
                 StartWebServer();
 
                 // Launch Edge in Standalone App Mode
-                string appUrl = "http://127.0.0.1:" + _port + "/";
+                string appUrl = "http://127.0.0.1:" + _port + "/" + (isOffline ? "?offline=true" : "");
                 Process browserProc = LaunchAppBrowser(appUrl);
 
                 if (browserProc != null)

@@ -28,17 +28,21 @@ class DashboardController extends Controller
         $endOfMonth = $now->copy()->endOfMonth();
 
         // 1. Current Total Balance (sum of active accounts)
-        $currentBalance = Account::where('user_id', $user->id)
+        $activeAccounts = Account::where('user_id', $user->id)
             ->where('is_active', true)
-            ->sum('current_balance');
+            ->get();
+        $currentBalance = $activeAccounts->sum('current_balance');
+        $activeAccountIds = $activeAccounts->pluck('id');
 
-        // 2. Total Income & Expense this month
+        // 2. Total Income & Expense this month (strictly active accounts)
         $monthlyIncome = Transaction::where('user_id', $user->id)
+            ->whereIn('account_id', $activeAccountIds)
             ->where('type', 'income')
             ->whereBetween('transaction_date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
             ->sum('amount');
 
         $monthlyExpense = Transaction::where('user_id', $user->id)
+            ->whereIn('account_id', $activeAccountIds)
             ->where('type', 'expense')
             ->whereBetween('transaction_date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
             ->sum('amount');

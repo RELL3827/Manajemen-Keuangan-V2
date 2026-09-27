@@ -128,15 +128,15 @@ export const offlineDB = {
       input_method: payload.input_method || 'manual',
       voice_text: payload.voice_text || null,
       attachment: payload.attachment || null,
-      created_at: new Date().toISOString(),
-      synced: false,
+      created_at: payload.created_at || new Date().toISOString(),
+      synced: payload.synced ?? false,
       account,
       to_account: toAccount,
       category,
     };
 
-    // Update account balances
-    if (account) {
+    // Update account balances only for newly created local offline transactions
+    if (account && !payload.synced) {
       if (type === 'expense') {
         account.current_balance = Number(account.current_balance) - amount;
       } else if (type === 'income') {
@@ -152,12 +152,16 @@ export const offlineDB = {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(['local_transactions', 'offline_transactions', 'local_accounts'], 'readwrite');
       tx.objectStore('local_transactions').put(fullRecord);
-      tx.objectStore('offline_transactions').put(fullRecord);
+      
+      // CRITICAL: Only add to offline queue if NOT already synced!
+      if (!fullRecord.synced) {
+        tx.objectStore('offline_transactions').put(fullRecord);
+      }
 
-      if (account) {
+      if (account && !payload.synced) {
         tx.objectStore('local_accounts').put(account);
       }
-      if (toAccount) {
+      if (toAccount && !payload.synced) {
         tx.objectStore('local_accounts').put(toAccount);
       }
 
@@ -449,15 +453,37 @@ export const offlineDB = {
 
       clientIds.forEach(id => {
         offStore.delete(id);
-        const getReq = locStore.get(id);
-        getReq.onsuccess = () => {
-          if (getReq.result) {
-            getReq.result.synced = true;
-            locStore.put(getReq.result);
-          }
+        offStore.delete(String(id));
+        const numId = Number(id);
+        if (!isNaN(numId)) {
+          offStore.delete(numId);
+        }
+
+        const updateLoc = (key: any) => {
+          const req = locStore.get(key);
+          req.onsuccess = () => {
+            if (req.result) {
+              req.result.synced = true;
+              locStore.put(req.result);
+            }
+          };
         };
+
+        updateLoc(id);
+        updateLoc(String(id));
+        if (!isNaN(numId)) updateLoc(numId);
       });
 
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  },
+
+  async clearOfflineQueue(): Promise<void> {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction('offline_transactions', 'readwrite');
+      tx.objectStore('offline_transactions').clear();
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
     });
